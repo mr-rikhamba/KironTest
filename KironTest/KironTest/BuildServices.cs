@@ -18,11 +18,17 @@ public static class BuildServices
     {
         builder.Services.AddControllers();
         builder.Services.AddMemoryCache();
+        builder.Services.AddHttpClient();
         ConnectionManager.InitialiseConnectionString(builder.Configuration.GetConnectionString("KironConnection"));
         builder.Services.AddSingleton<ConnectionManager>();
+        builder.Services.AddSingleton<BankServiceManager>();
+        builder.Services.AddSingleton<UkBankBackgroundService>();
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<UkBankBackgroundService>());
+
         builder.Services.AddTransient<IDalContract, DalService>();
         builder.Services.AddTransient<ICacheContract, CacheHelper>();
         builder.Services.AddTransient<IUserContract, UserService>();
+        builder.Services.AddTransient<IBankHolidayContract, BankHolidayService>();
         builder.Services.Configure<AuthConfig>(builder.Configuration.GetSection("AuthConfig"));
 
         // Validate AutConfig

@@ -41,6 +41,10 @@ public class UserService(ILogger<UserService> _logger, ConnectionManager _connec
             _logger.LogError(ex, "Create failed.");
             throw;
         }
+        finally
+        {
+            _connectionManager.CloseAndDiscard();
+        }
     }
 
     public async Task<BaseModel> LoginUser(string username, string password)
@@ -68,6 +72,10 @@ public class UserService(ILogger<UserService> _logger, ConnectionManager _connec
         {
             _logger.LogError(ex, "Create failed.");
             throw;
+        }
+        finally
+        {
+            _connectionManager.CloseAndDiscard();
         }
     }
 

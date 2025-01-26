@@ -14,10 +14,10 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace KironTest.Logic.Services;
 
-public class UserService(ILogger<UserService> _logger, ConnectionManager _connectionManager, IOptions<AuthConfig> authConfig) : IUserContract
+public class UserService(ILogger<UserService> _logger, IRepositoryContract _repository, IOptions<AuthConfig> authConfig) : IUserContract
 {
-    AuthConfig _authConfig = authConfig.Value;
-    public async Task<BaseModel> CreateUser(UserModel user)
+    readonly AuthConfig _authConfig = authConfig.Value;
+    public async Task<BaseResponseModel<UserModel>> CreateUser(UserModel user)
     {
         try
         {
@@ -27,27 +27,23 @@ public class UserService(ILogger<UserService> _logger, ConnectionManager _connec
             parameters.Add("@firstName", user.FirstName, DbType.String);
             parameters.Add("@lastName", user.LastName, DbType.String);
 
-            var activeConnection = _connectionManager.GetConnection();
-            var result = (await activeConnection.QueryAsync<UserModel>("SP_CreateUser", parameters, commandType: CommandType.StoredProcedure)).FirstOrDefault();
-            return result;
+            var newUser = await _repository.ExecuteSingle<UserModel>("SP_CreateUser", parameters);
+
+            return new BaseResponseModel<UserModel> { ResponseData = newUser };
         }
         catch (SqlException ex)
         {
             _logger.LogError(ex, "Create failed.");
-            return new BaseResponseModel { IsSuccessful = false, ResponseMessage = ex.Message };
+            return new BaseResponseModel<UserModel> { IsSuccessful = false, ResponseMessage = ex.Message };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Create failed.");
             throw;
         }
-        finally
-        {
-            _connectionManager.CloseAndDiscard();
-        }
     }
 
-    public async Task<BaseModel> LoginUser(string username, string password)
+    public async Task<BaseResponseModel<AuthModel>> LoginUser(string username, string password)
     {
         try
         {
@@ -55,27 +51,25 @@ public class UserService(ILogger<UserService> _logger, ConnectionManager _connec
             parameters.Add("@Username", username, DbType.String);
             parameters.Add("@Password", password, DbType.String);
 
-            var activeConnection = _connectionManager.GetConnection();
-            var result = (await activeConnection.QueryAsync<UserModel>("SP_LoginUser", parameters, commandType: CommandType.StoredProcedure)).FirstOrDefault();
-            return new AuthModel
+            var result = await _repository.ExecuteSingle<UserModel>("SP_LoginUser", parameters);
+            return new BaseResponseModel<AuthModel>
             {
-                Token = GenerateJwtToken(result),
-                User = result
+                ResponseData = new AuthModel
+                {
+                    Token = GenerateJwtToken(result),
+                    User = result
+                }
             };
         }
         catch (SqlException ex)
         {
-            _logger.LogError(ex, "Create failed.");
-            return new BaseResponseModel { IsSuccessful = false, ResponseMessage = ex.Message };
+            _logger.LogError(ex, "Login failed.");
+            return new BaseResponseModel<AuthModel> { IsSuccessful = false, ResponseMessage = ex.Message };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Create failed.");
             throw;
-        }
-        finally
-        {
-            _connectionManager.CloseAndDiscard();
         }
     }
 

@@ -25,13 +25,14 @@ public static class BuildServices
         builder.Services.AddSingleton<UkBankBackgroundService>();
         builder.Services.AddHostedService(sp => sp.GetRequiredService<UkBankBackgroundService>());
 
-        builder.Services.AddTransient<IDalContract, DalService>();
-        builder.Services.AddTransient<ICacheContract, CacheHelper>();
+        builder.Services.AddTransient<IRepositoryContract, RepositoryService>();
         builder.Services.AddTransient<IUserContract, UserService>();
         builder.Services.AddTransient<IBankHolidayContract, BankHolidayService>();
+        builder.Services.AddTransient<INavigationContract, NavigationService>();
+        builder.Services.AddTransient<ICoinContract, CoinService>();
         builder.Services.Configure<AuthConfig>(builder.Configuration.GetSection("AuthConfig"));
+        builder.Services.Configure<ExternalServiceConfigs>(builder.Configuration.GetSection("ExternalServiceConfig"));
 
-        // Validate AutConfig
         var serviceProvider = builder.Services.BuildServiceProvider();
         var authConfig = serviceProvider.GetRequiredService<IOptions<AuthConfig>>().Value;
         builder.Services.AddAuthentication(options =>

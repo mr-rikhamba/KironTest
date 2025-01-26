@@ -12,9 +12,11 @@ public class UkBankBackgroundService(ILogger<UkBankBackgroundService> _logger, I
         {
             if (_bankServiceManager.IsServiceEnabled)
             {
+                _logger.LogInformation("Starting data retrieval.");
                 await _bankHolidayContract.UpdateHolidayData();
+                _logger.LogInformation("Data Updated.");
             }
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromMinutes(1));
         }
     }
 }

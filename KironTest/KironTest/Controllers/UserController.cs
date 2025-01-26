@@ -27,7 +27,11 @@ namespace KironTest.Controllers
         {
             try
             {
-                return Ok(await _userService.LoginUser(loginModel.Username, loginModel.Password));
+                if (loginModel.IsValid)
+                {
+                    return Ok(await _userService.LoginUser(loginModel.Username, loginModel.Password));
+                }
+                return BadRequest("Invalid credentials entered.");
             }
             catch (Exception ex)
             {

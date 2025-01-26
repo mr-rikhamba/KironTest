@@ -7,13 +7,13 @@ namespace KironTest.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class NavigationController(IDalContract _dalSvc) : ControllerBase
+    public class NavigationController(INavigationContract _navService) : ControllerBase
     {
         [HttpGet]
         public async Task<IActionResult> Get()
         {
 
-            return Ok(await _dalSvc.GetNavigation());
+            return Ok(await _navService.GetNavigation());
         }
     }
 }

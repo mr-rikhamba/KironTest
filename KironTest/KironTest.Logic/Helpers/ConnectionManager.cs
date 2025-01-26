@@ -8,33 +8,40 @@ namespace KironTest.Logic.Helpers;
 public class ConnectionManager
 {
 
-    private ConcurrentBag<IDbConnection> _connections = new ConcurrentBag<IDbConnection>();
+    private readonly ConcurrentBag<IDbConnection> _connections = new ConcurrentBag<IDbConnection>();
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
     private static string? _connectionString;
     public int Count { get; set; }
 
-    public IDbConnection GetConnection()
+    public async Task<IDbConnection> GetConnectionAsync()
     {
-        lock (_connections)
+        try
         {
+            await _semaphore.WaitAsync();
             if (_connections.Count <= 10)
             {
                 var connection = new SqlConnection(_connectionString);
-                _connections.Add(connection); Count++;
+                _connections.Add(connection);
+                Count++;
+                await connection.OpenAsync();
                 return connection;
             }
+
+        }
+        finally
+        {
+            _semaphore.Release();
         }
         throw new InvalidOperationException("Application has exceeded is attempting to create more than 10 connections");
     }
-
     public static void InitialiseConnectionString(string? connectionString)
     {
-        _connectionString = connectionString ?? throw new Exception("Connection string cannot be empty.");
+        _connectionString = connectionString ?? throw new InvalidDataException("Connection string cannot be empty.");
     }
 
     public void CloseAndDiscard()
     {
-        IDbConnection? connection;
-        _connections.TryTake(out connection);
+        _connections.TryTake(out IDbConnection? connection);
         if (connection is not null)
         {
             Count--;

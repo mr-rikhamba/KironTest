@@ -7,17 +7,19 @@ using KironTest.Logic.Helpers;
 using KironTest.Logic.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
 
 namespace KironTest.Logic.Services;
 
-public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClientFactory _httpClientFactory, ConnectionManager _connectionMgr) : IBankHolidayContract
+public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClientFactory _httpClientFactory, IRepositoryContract _repositoryService, IOptions<ExternalServiceConfigs> configs) : IBankHolidayContract
 {
+    private readonly ExternalServiceConfigs _externalServiceConfigs = configs.Value;
     public async Task UpdateHolidayData()
     {
         using (var httpClient = _httpClientFactory.CreateClient())
         {
-            httpClient.BaseAddress = new Uri("https://www.gov.uk/");
+            httpClient.BaseAddress = new Uri(_externalServiceConfigs.BankHolidayUrl);
             var response = await httpClient.GetAsync("bank-holidays.json");
             var json = await response.Content.ReadAsStringAsync();
             var options = new JsonSerializerOptions
@@ -43,8 +45,7 @@ public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClient
     {
         try
         {
-            var activeConnection = _connectionMgr.GetConnection();
-            var result = (await activeConnection.QueryAsync<RegionModel>("SP_GetRegions", commandType: CommandType.StoredProcedure)).ToList();
+            var result = await _repositoryService.Execute<RegionModel>("SP_GetRegions");
             return new BaseResponseModel<List<RegionModel>>
             {
                 ResponseData = result
@@ -60,20 +61,19 @@ public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClient
             _logger.LogError(ex, "Unknown Error.");
             throw;
         }
-        finally
-        {
-            _connectionMgr.CloseAndDiscard();
-        }
     }
 
     public async Task<BaseResponseModel<List<RegionHolidayModel>>> GetRegionHolidays(int regionId)
     {
         try
         {
+            if (regionId < 1)
+            {
+                throw new ArgumentException("Please use a valid region id.");
+            }
             var parameters = new DynamicParameters();
             parameters.Add("@regionId", regionId, DbType.Int32);
-            var activeConnection = _connectionMgr.GetConnection();
-            var result = (await activeConnection.QueryAsync<RegionHolidayModel>("SP_HolidayByRegion", parameters, commandType: CommandType.StoredProcedure)).ToList();
+            var result = await _repositoryService.Execute<RegionHolidayModel>("SP_HolidayByRegion", parameters);
             return new BaseResponseModel<List<RegionHolidayModel>>
             {
                 ResponseData = result
@@ -89,24 +89,17 @@ public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClient
             _logger.LogError(ex, "Unknown Error.");
             throw;
         }
-        finally
-        {
-            _connectionMgr.CloseAndDiscard();
-        }
     }
     #region Local Methods
 
     private async Task AddBankHolidaysAsync(DataTable dTbl, string spName, string paramName, string tvpName)
     {
-        var connection = _connectionMgr.GetConnection();
         var parameters = new DynamicParameters();
         parameters.Add($"@{paramName}", dTbl.AsTableValuedParameter(tvpName));
-
-        await connection.ExecuteAsync(spName, parameters, commandType: CommandType.StoredProcedure);
-
+        await _repositoryService.ExecuteTvp(dTbl, spName, parameters);
     }
 
-    private DataTable ConvertToHolidayDataTable(Dictionary<string, RegionStorageModel> data)
+    private static DataTable ConvertToHolidayDataTable(Dictionary<string, RegionStorageModel> data)
     {
         var table = new DataTable();
         table.Columns.Add("Title", typeof(string));
@@ -123,7 +116,7 @@ public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClient
 
         return table;
     }
-    private DataTable ConvertToRegionDataTable(Dictionary<string, RegionStorageModel> data)
+    private static DataTable ConvertToRegionDataTable(Dictionary<string, RegionStorageModel> data)
     {
         var table = new DataTable();
         table.Columns.Add("Name", typeof(string));
@@ -135,7 +128,7 @@ public class BankHolidayService(ILogger<BankHolidayService> _logger, IHttpClient
 
         return table;
     }
-    private DataTable ConvertToRegionHolidayMappingDataTable(Dictionary<string, RegionStorageModel> data)
+    private static DataTable ConvertToRegionHolidayMappingDataTable(Dictionary<string, RegionStorageModel> data)
     {
         var table = new DataTable();
         table.Columns.Add("RegionName", typeof(string));

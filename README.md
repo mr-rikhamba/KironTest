@@ -22,12 +22,14 @@
      ```bash
      dotnet run
      ```
+   - Alternatively run in Vscode (on Mac) or Visual Studio (on Windows)
 
 4. **Access the API**:
    - Open your browser and navigate to the following URL to view API information:
      ```
-     http://localhost:5070/scalar/
+     http://localhost:5070/scalar/v1#tag/
      ```
 
 ### Notes
 - If you encounter issues, ensure dependencies are restored correctly with `dotnet restore`.
+- Coint stats api is no longer public, I registered an account and acquired an api key

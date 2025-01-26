@@ -8,15 +8,18 @@ namespace KironTest.Controllers
     [Route("api/[controller]")]
     [ApiController]
 
-    [SimpleCache(1)]
+    [SimpleCache(30)]
     public class BankHolidayController(IBankHolidayContract _bankHolidayService, BankServiceManager _bankServiceManager) : ControllerBase
     {
         [HttpGet("RetrieveData")]
         public async Task<IActionResult> Get()
         {
-            await _bankHolidayService.UpdateHolidayData();
-
-            return Ok();
+            if (!_bankServiceManager.IsServiceEnabled)
+            {
+                await _bankHolidayService.UpdateHolidayData();
+                return Ok();
+            }
+            return BadRequest("The service is currently in automated mode.");
         }
         [HttpGet("GetRegions")]
         public async Task<IActionResult> GetRegions()
